@@ -1,0 +1,35 @@
+name: Daily TCGplayer prices
+
+on:
+  schedule:
+    - cron: "15 21 * * *"   # 21:15 UTC = early morning Sydney, after TCGplayer's daily price update
+  workflow_dispatch: {}
+  push:
+    paths: ["build_prices.py", ".github/workflows/daily-prices.yml"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-prices
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build price files
+        run: python build_prices.py
+      - name: Commit if changed
+        run: |
+          git config user.name "price-bot"
+          git config user.email "price-bot@users.noreply.github.com"
+          git add data
+          if git diff --cached --quiet; then echo "No changes"; exit 0; fi
+          git commit -m "Prices $(date -u +%Y-%m-%d)"
+          git push
